@@ -8,6 +8,10 @@
 
 Repro-Agent is an autonomous scientific reproducibility auditor built for the FAR AWAY 2026 Agentic & Autonomous Systems track. It accepts a research paper and a GitHub repository, extracts scientific claims, maps them to source code evidence, verifies implementation details, and generates a transparent reproducibility report.
 
+## Deployment
+
+Live frontend on Vercel: [https://faraway26.vercel.app](https://faraway26.vercel.app)
+
 ## Features
 
 - 🤖 Six-node autonomous audit pipeline powered by LangGraph.
