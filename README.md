@@ -221,6 +221,7 @@ Create a `.env` file from `.env.example` and fill in your local values.
 | `GITHUB_TOKEN` | Recommended | GitHub API token for reading repository files. |
 | `DATABASE_URL` | Optional | Database connection string placeholder. Default uses local SQLite. |
 | `CORS_ORIGINS` | Optional | Allowed frontend origins. Default: `http://localhost:5173`. |
+| `CORS_ORIGIN_REGEX` | Optional | Regex for allowed hosted frontend origins, for example Vercel preview URLs. |
 | `VITE_API_BASE` | Optional | Frontend API base URL. Default: `http://localhost:8000`. |
 
 Do not commit your `.env` file or real API keys.
