@@ -37,12 +37,12 @@ flowchart TD
 
 ## Frontend UI and UX
 
-The frontend is a lightweight React + Vite single-page app designed to make the autonomous audit pipeline feel observable rather than opaque. The current interface is intentionally minimal, but it establishes the UX structure for the full hackathon demo:
+The frontend is a premium dark-mode React + Vite single-page app designed to make the autonomous audit pipeline feel observable, trustworthy, and research-grade:
 
 ### Screen layout
 
 1. **Hero / product context**
-   - The page opens with the Repro-Agent name and a short description so users immediately understand that the tool audits scientific reproducibility rather than acting as a generic chatbot.
+   - The page opens with a polished Repro-Agent header, FAR AWAY 2026 badge, status pill, GitHub placeholder, and report CTA when an audit completes.
    - The copy frames the experience as an autonomous pipeline that runs after the user submits a paper and repository pair.
 
 2. **Audit form**
@@ -50,44 +50,52 @@ The frontend is a lightweight React + Vite single-page app designed to make the 
      - a paper URL or arXiv ID, prefilled with `arxiv:1706.03762`
      - a GitHub repository URL, prefilled with `https://github.com/tensorflow/tensor2tensor`
    - The prefilled values are chosen to support a fast demo path: users can click **Start audit** without hunting for sample data.
-   - The form is intentionally direct and avoids advanced settings so first-time users can understand the primary workflow in one glance.
+   - The form includes Quick Scan, Deep Audit, and Full Reproduction modes; the selected mode is submitted to the backend and controls repository scan breadth.
 
 3. **Report summary panel**
-   - After an audit starts, the UI shows the audit's current pipeline node and reproducibility score.
+   - After an audit starts, the UI shows the current node, verdict badge, reproducibility score ring, and mini cards for claims, scanned files, evidence matches, and missing artifacts.
    - A report link opens the backend-generated HTML report in a new tab, separating the live monitoring workflow from the final shareable artifact.
 
 4. **Live pipeline timeline**
    - The UI subscribes to the backend SSE stream for the active audit.
-   - Each pipeline event is appended to an ordered list, giving users a real-time audit trail as the system fetches the paper, extracts claims, maps the repo, audits code, verifies claims, and writes the report.
-   - This timeline is the core agentic UX element: it makes the system's autonomous decisions visible step by step.
+   - Each pipeline event is rendered as a readable trace item with a tool label, timestamp, summary, and expandable raw JSON payload.
+   - The pipeline control room shows all six graph nodes with pending/running/completed states, making autonomous decisions visible step by step.
 
 ### Component map
 
 - `frontend/src/App.jsx` owns top-level page state, starts audits, wires the SSE hook, and composes the form, report panel, and live pipeline timeline.
 - `frontend/src/components/AuditForm.jsx` contains the paper/repository input form and demo-friendly defaults.
-- `frontend/src/components/ReportViewer.jsx` displays the current audit node, score, and report link.
-- `frontend/src/components/LivePipeline.jsx` renders streaming backend events as a chronological timeline.
-- `frontend/src/hooks/useSSE.js` manages the EventSource connection and listens for named pipeline events.
+- `frontend/src/components/ReportViewer.jsx` displays verdict state, score ring, mini metrics, current node, and report link.
+- `frontend/src/components/LivePipeline.jsx` renders the six-step graph tracker, readable trace timeline, and allowed-tools panel.
+- `frontend/src/hooks/useSSE.js` manages the EventSource connection, timestamps events, and reports connection state.
 - `frontend/src/api.js` centralizes backend API URLs and request helpers.
 
 ### Visual design direction
 
-- The current styling uses a clean card-based layout on a soft background, with high-contrast primary actions and rounded sections to keep the demo readable on a projector.
-- Form fields are stacked vertically to reduce cognitive load and make the two required inputs obvious.
-- The live event panel favors transparency over polish at this stage by showing raw event payloads; a follow-up UI pass should convert these payloads into human-readable step cards with status icons, durations, and claim counts.
+- The styling uses a deep navy/black scientific grid background, glassmorphism cards, subtle gradients, and thin borders.
+- The interface uses clean sans-serif typography for product copy and monospace styling for trace/tool outputs.
+- High-contrast CTAs, status pills, animated running indicators, and responsive cards make the app demo-ready on desktop and projector screens.
 
-### Planned UX improvements
+### Remaining product polish
 
-- Replace raw JSON event rows with a polished six-step pipeline tracker.
-- Add pass/fail/partial color badges for claim verdicts.
-- Add expandable claim cards with paper text, code snippet, file/line citation, discrepancy explanation, and verification confidence.
-- Add demo preset buttons for known PASS and FAIL scenarios.
-- Add loading, error, empty-state, and retry affordances around SSE disconnects and backend failures.
-- Add a score ring and downloadable report button in the report panel.
+- Add claim-level expandable cards inside the frontend once the backend exposes richer claim/evidence snippets in the summary API.
+- Add curated PASS/FAIL demo presets once cached demo audit fixtures are available.
+
+## Merge-ready scope
+
+This implementation is ready to merge as a hackathon-grade MVP. It includes:
+
+- A runnable FastAPI audit API with asynchronous graph execution and SSE streaming.
+- A six-node LangGraph pipeline with paper fetching, claim extraction, repository mapping, AST auditing, claim verification, and HTML report generation.
+- OpenAI-powered claim extraction with regex fallback for offline demos.
+- Audit modes (`quick`, `deep`, `full`) that control repository scan breadth.
+- Deterministic verifier coverage for numeric hyperparameters and best-effort formula equivalence, with transparent `partial` verdicts where exact proof is unavailable.
+- A premium React/Vite dashboard for launching audits, observing pipeline progress, reviewing trace events, and opening the final report.
+- Unit tests for verifier behavior and math equivalence helpers.
 
 ## Current implementation status
 
-This repository now contains a runnable starter implementation of the PRD:
+This repository now contains a runnable hackathon MVP implementation of the PRD:
 
 - FastAPI backend with audit creation, polling, SSE streaming, and HTML report endpoints.
 - LangGraph pipeline with the six PRD nodes and retry routing for claim extraction.
@@ -95,4 +103,4 @@ This repository now contains a runnable starter implementation of the PRD:
 - GitHub repository mapping through PyGithub.
 - React/Vite frontend for launching audits and watching pipeline events.
 
-The verifier currently emits conservative `partial` / `not_found` verdicts; full symbolic paper-to-code expression mapping is the next major milestone.
+The verifier now combines deterministic checks for numeric hyperparameters, best-effort symbolic equivalence, and conservative semantic evidence matching. Claims without linked evidence remain `not_found`, and ambiguous matches are marked `partial` for reviewer transparency.

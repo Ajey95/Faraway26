@@ -32,7 +32,7 @@ export function AuditForm({ onSubmit, isRunning = false }) {
         </p>
       </div>
 
-      <form className="audit-form" onSubmit={(event) => { event.preventDefault(); onSubmit({ paper_url: paperUrl, repo_url: repoUrl }); }}>
+      <form className="audit-form" onSubmit={(event) => { event.preventDefault(); onSubmit({ paper_url: paperUrl, repo_url: repoUrl, audit_mode: mode }); }}>
         <div className="field-grid">
           <label>
             <span>Paper URL or arXiv ID</span>
@@ -52,7 +52,7 @@ export function AuditForm({ onSubmit, isRunning = false }) {
           <button className="primary-button" type="submit" disabled={isRunning}>
             {isRunning ? 'Audit running…' : 'Start Autonomous Audit'}
           </button>
-          <span className="launch-note">Mode selection is visual for now; backend execution uses the existing audit API.</span>
+          <span className="launch-note">Audit mode is sent with the request and can guide backend depth as execution policies expand.</span>
         </div>
       </form>
     </section>

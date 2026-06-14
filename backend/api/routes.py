@@ -30,6 +30,7 @@ def _result(state: AuditState) -> AuditResult:
         audit_id=payload["audit_id"],
         status="completed" if payload["current_node"] == "write_report" else "running",
         current_node=payload["current_node"],
+        audit_mode=payload.get("audit_mode", "deep"),
         reproducibility_score=payload["reproducibility_score"],
         score_breakdown=payload["score_breakdown"],
         claims=payload["claims"],
@@ -51,7 +52,7 @@ async def _run_audit(audit_id: str) -> None:
 @router.post("/audit", response_model=AuditResult, status_code=202)
 async def create_audit(request: AuditRequest) -> AuditResult:
     audit_id = str(uuid.uuid4())
-    AUDITS[audit_id] = initial_state(request.paper_url, str(request.repo_url), audit_id)
+    AUDITS[audit_id] = initial_state(request.paper_url, str(request.repo_url), audit_id, request.audit_mode)
     TASKS[audit_id] = asyncio.create_task(_run_audit(audit_id))
     return _result(AUDITS[audit_id])
 

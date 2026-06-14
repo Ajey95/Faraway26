@@ -46,6 +46,7 @@ class AuditState(TypedDict):
     paper_url: str
     repo_url: str
     audit_id: str
+    audit_mode: str
     paper_text: str
     paper_metadata: dict
     claims: list[MathClaim]
@@ -66,11 +67,12 @@ class AuditState(TypedDict):
     sse_events: list[dict]
 
 
-def initial_state(paper_url: str, repo_url: str, audit_id: str) -> AuditState:
+def initial_state(paper_url: str, repo_url: str, audit_id: str, audit_mode: str = "deep") -> AuditState:
     return {
         "paper_url": paper_url,
         "repo_url": repo_url,
         "audit_id": audit_id,
+        "audit_mode": audit_mode,
         "paper_text": "",
         "paper_metadata": {},
         "claims": [],
