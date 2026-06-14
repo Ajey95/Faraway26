@@ -172,22 +172,35 @@ To run an audit:
 │   ├── package.json
 │   └── vite.config.js
 ├── tests/                           # Pytest verifier tests
+├── docs/
+│   └── demo/                        # Demo screenshots used in this README
 ├── requirements.txt                 # Python dependencies
-├── .env.example                     # Environment variable template
-└── REPRO_AGENT_FAR_AWAY_2026_PRD.md # Product requirements and design notes
+├── render.yaml                      # Render backend deployment blueprint
+├── vercel.json                      # Vercel frontend deployment config
+└── .env.example                     # Environment variable template
 ```
 
-## Screenshots
+## Demo
 
-Add screenshots after running the application locally:
+The flow below shows a complete Repro-Agent audit using `arxiv:1706.03762` and `https://github.com/tensorflow/tensor2tensor`.
 
-| Dashboard | Live Pipeline |
-| --- | --- |
-| ![Dashboard screenshot placeholder](docs/screenshots/dashboard.png) | ![Live pipeline screenshot placeholder](docs/screenshots/live-pipeline.png) |
+### 1. Submit the audit request
 
-| Report View | Audit Form |
-| --- | --- |
-| ![Report screenshot placeholder](docs/screenshots/report.png) | ![Audit form screenshot placeholder](docs/screenshots/audit-form.png) |
+The dashboard starts with paper and repository inputs, audit mode selection, pipeline status cards, and a reproducibility summary panel.
+
+![Repro-Agent dashboard with audit inputs and queued pipeline](docs/demo/01-audit-input.png)
+
+### 2. Watch the autonomous pipeline complete
+
+As the audit runs, each graph node reports live progress through SSE: paper fetching, claim extraction, repository mapping, AST code auditing, claim verification, and report generation.
+
+![Completed autonomous pipeline with live agent timeline and reproducibility score](docs/demo/02-live-pipeline.png)
+
+### 3. Review the generated HTML report
+
+The final report summarizes the paper, repository, reproducibility score, extracted claims, formulas, hyperparameters, and supporting implementation evidence.
+
+![Generated Repro-Agent HTML audit report with verified paper claims](docs/demo/03-html-report.png)
 
 ## API Endpoints
 
