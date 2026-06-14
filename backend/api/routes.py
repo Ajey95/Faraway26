@@ -26,9 +26,12 @@ def _json_default(value):
 
 def _result(state: AuditState) -> AuditResult:
     payload = json.loads(json.dumps(state, default=_json_default))
+    status = "completed" if payload["current_node"] == "write_report" else "running"
+    if payload["current_node"] == "failed":
+        status = "failed"
     return AuditResult(
         audit_id=payload["audit_id"],
-        status="completed" if payload["current_node"] == "write_report" else "running",
+        status=status,
         current_node=payload["current_node"],
         audit_mode=payload.get("audit_mode", "deep"),
         reproducibility_score=payload["reproducibility_score"],

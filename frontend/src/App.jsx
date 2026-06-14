@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { createAudit, reportUrl } from './api';
+import { createAudit, getAudit, reportUrl } from './api';
 import { AuditForm } from './components/AuditForm';
 import { LivePipeline, ToolAllowlistCard } from './components/LivePipeline';
 import { ReportViewer, StatusBadge } from './components/ReportViewer';
@@ -50,6 +50,25 @@ function App() {
   const status = getAppStatus(audit, events, connectionState);
   const isRunning = status === 'running';
   const reportReady = status === 'completed';
+
+  useEffect(() => {
+    if (!audit?.audit_id) return;
+    const terminalEvent = events.find((event) => event.step === 'report_written' || event.step === 'failed');
+    if (!terminalEvent) return;
+
+    let cancelled = false;
+    getAudit(audit.audit_id)
+      .then((result) => {
+        if (!cancelled) setAudit(result);
+      })
+      .catch((error) => {
+        if (!cancelled) setSubmitError(error.message);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [audit?.audit_id, events]);
 
   async function start(payload) {
     setSubmitError('');

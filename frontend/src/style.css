@@ -84,8 +84,8 @@ main { display: grid; gap: 22px; }
   letter-spacing: .06em;
 }
 .status-badge.running, .status-badge.audit-running, .connection-pill.connected { color: var(--accent); border-color: rgba(143,211,255,.45); }
-.status-badge.completed, .status-badge.reproducible { color: var(--success); border-color: rgba(52,211,153,.45); }
-.status-badge.failed, .status-badge.not-reproducible, .connection-pill.disconnected { color: var(--danger); border-color: rgba(251,113,133,.45); }
+.status-badge.completed, .status-badge.reproducible, .connection-pill.completed { color: var(--success); border-color: rgba(52,211,153,.45); }
+.status-badge.failed, .status-badge.not-reproducible, .connection-pill.failed, .connection-pill.disconnected { color: var(--danger); border-color: rgba(251,113,133,.45); }
 .status-badge.partially-reproducible { color: var(--warning); border-color: rgba(251,191,36,.45); }
 .status-badge.idle, .connection-pill.idle, .connection-pill.closed, .connection-pill.connecting { color: var(--muted); }
 

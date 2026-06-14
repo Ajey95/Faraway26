@@ -21,11 +21,27 @@ def client() -> Github:
 def score_file_relevance(path: str) -> float:
     lowered = path.lower()
     score = 0.0
-    for token in ("model", "loss", "optim", "train", "activation", "attention", "bert", "config"):
+    if lowered == "tensor2tensor/models/transformer.py":
+        score += 12.0
+    if lowered == "tensor2tensor/layers/common_attention.py":
+        score += 10.0
+    if lowered == "tensor2tensor/layers/common_layers.py":
+        score += 8.0
+    if lowered == "tensor2tensor/utils/beam_search.py":
+        score += 6.0
+    for token in ("transformer", "attention", "hparam", "common", "beam", "model", "loss", "optim", "train", "activation", "bert", "config"):
         if token in lowered:
             score += 1.0
     if lowered.endswith(".py"):
         score += 0.5
+    if lowered.endswith("_test.py") or "/test" in lowered:
+        score -= 3.0
+    if "/rl/" in lowered:
+        score -= 4.0
+    if "/research/" in lowered:
+        score -= 1.0
+    if "/models/research/" in lowered and "transformer" not in lowered:
+        score -= 1.0
     return score
 
 
