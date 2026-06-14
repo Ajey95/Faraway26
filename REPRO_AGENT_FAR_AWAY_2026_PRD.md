@@ -59,7 +59,7 @@ The Kaggle notebook prototype (`repro-agent-autonomous-scientific-auditor.ipynb`
 
 | Issue | Notebook Approach | Production Approach (This PRD) |
 |---|---|---|
-| **LLM** | Gemini 2.5 Flash | Claude claude-sonnet-4-6 (better at code analysis, structured JSON output) |
+| **LLM** | Gemini 2.5 Flash | OpenAI GPT (better at code analysis, structured JSON output) |
 | **Agent framework** | Hand-rolled `InMemorySessionService` dict | LangGraph `StateGraph` with typed `AuditState` — proper DAG, conditional retry edges |
 | **Code analysis** | LLM reads raw code cold | AST-first: Python `ast` module + `libcst` for exact line numbers; LLM only for semantic mapping |
 | **GitHub access** | Unauthenticated raw `requests` (60 req/hr rate limit) | PyGithub with `GITHUB_TOKEN` (5,000 req/hr, handles encoding) |
@@ -79,7 +79,7 @@ The Kaggle notebook prototype (`repro-agent-autonomous-scientific-auditor.ipynb`
 ```
 Backend Runtime:     Python 3.11+
 Agent Framework:     LangGraph ≥0.1.0 (StateGraph with TypedDict state — NOT sequential chains)
-LLM:                 Claude claude-sonnet-4-6 via anthropic SDK ≥0.25.0 (NOT LangChain wrapper)
+LLM:                 OpenAI GPT via openai SDK (NOT LangChain wrapper)
 PDF Parsing:         pdfplumber (primary) → pypdf (fallback) → pdf2image + pytesseract (scanned OCR)
 Math Extraction:     sympy (algebraic equivalence), regex (LaTeX pattern extraction from raw text)
 Code Analysis:       ast (built-in Python AST), libcst (precise node locations), astroid (type inference)
@@ -110,7 +110,7 @@ repro-agent/
 │   │   ├── state.py                   # TypedDict AuditState + dataclasses MathClaim, CodeEvidence, Verdict
 │   │   └── nodes/
 │   │       ├── paper_fetcher.py       # Node 1: Fetch PDF, extract text, get metadata
-│   │       ├── claim_extractor.py     # Node 2: Claude extracts math claims as structured JSON
+│   │       ├── claim_extractor.py     # Node 2: OpenAI GPT extracts math claims as structured JSON
 │   │       ├── repo_mapper.py         # Node 3: Map repo, score file relevance, fetch contents
 │   │       ├── ast_auditor.py         # Node 4: AST parse all files, extract implementations
 │   │       ├── verifier.py            # Node 5: Cross-map claims to evidence, produce verdicts
@@ -171,7 +171,7 @@ class MathClaim:
     paper_section: str                   # "Section 3.1 — Architecture"
     paper_page: int                      # 1-indexed page number
     raw_text: str                        # Surrounding 2-3 sentences from paper
-    confidence: float                    # Claude's extraction confidence 0.0–1.0
+    confidence: float                    # the model's extraction confidence 0.0–1.0
 
 
 @dataclass
@@ -421,7 +421,7 @@ def run(state: AuditState) -> AuditState:
 
 ### Node 2: `claim_extractor.py` — Extract Mathematical Claims
 
-**Purpose:** Use Claude to extract all verifiable mathematical claims from the paper. This is the most critical node — the quality of everything downstream depends on it.
+**Purpose:** Use OpenAI GPT to extract all verifiable mathematical claims from the paper. This is the most critical node — the quality of everything downstream depends on it.
 
 **EXTRACTION_SYSTEM_PROMPT (use verbatim):**
 
@@ -475,14 +475,14 @@ Output the same JSON array format.
 **Implementation:**
 
 ```python
-import anthropic
+from openai import OpenAI
 import json
 import re
 import uuid
 from agents.state import AuditState, MathClaim
 from tools.math_tools import extract_latex_patterns
 
-client = anthropic.Anthropic()
+client = OpenAI()
 
 def chunk_text(text: str, max_chars: int = 24000) -> List[str]:
     """Split on section boundaries first, then by length."""
@@ -505,7 +505,7 @@ def chunk_text(text: str, max_chars: int = 24000) -> List[str]:
     return chunks if chunks else [text[:max_chars]]
 
 
-def parse_claude_response(response_text: str) -> List[dict]:
+def parse_model_response(response_text: str) -> List[dict]:
     """Robust JSON extraction — handles markdown fences and trailing commas."""
     # Strip markdown fences
     clean = re.sub(r'```(?:json)?\n?', '', response_text).strip().rstrip('`')
@@ -534,16 +534,13 @@ def run(state: AuditState) -> AuditState:
     all_raw_claims = []
     
     for i, chunk in enumerate(chunks):
-        response = client.messages.create(
-            model="claude-sonnet-4-6",
-            max_tokens=4096,
-            system=system_prompt,
-            messages=[{
-                "role": "user",
-                "content": f"Extract all mathematical claims from this paper section:\n\n{chunk}"
-            }]
+        response = client.responses.create(
+            model=os.getenv("OPENAI_MODEL", "gpt-4.1"),
+            instructions=system_prompt,
+            input=f"Extract all mathematical claims from this paper section:\n\n{chunk}",
+            max_output_tokens=4096,
         )
-        raw = parse_claude_response(response.content[0].text)
+        raw = parse_model_response(response.output_text)
         all_raw_claims.extend(raw)
     
     # ── Deduplicate ────────────────────────────────────────────────────
@@ -894,7 +891,7 @@ def run(state: AuditState) -> AuditState:
         })
     
     # ── LLM mapping pass: map claims to discovered functions ───────────
-    # Build a compact summary of what AST found, then ask Claude to map
+    # Build a compact summary of what AST found, then ask OpenAI GPT to map
     function_summary = {}
     for path, funcs in ast_functions.items():
         function_summary[path] = [
@@ -909,10 +906,10 @@ def run(state: AuditState) -> AuditState:
     ]
     
     if claims_for_mapping and function_summary:
-        mapping_response = client.messages.create(
-            model="claude-sonnet-4-6",
-            max_tokens=4096,
-            system="""Map paper claims to code functions. 
+        mapping_response = client.responses.create(
+            model=os.getenv("OPENAI_MODEL", "gpt-4.1"),
+            max_output_tokens=4096,
+            instructions="""Map paper claims to code functions. 
 Output a JSON array where each item is:
 {"claim_id": "...", "file_path": "...", "function_name": "...", "confidence": 0.0-1.0, "reason": "..."}
 Only include mappings with confidence > 0.4. Output only the JSON array.""",
@@ -923,7 +920,7 @@ Only include mappings with confidence > 0.4. Output only the JSON array.""",
             }]
         )
         
-        mappings = parse_json_response(mapping_response.content[0].text)
+        mappings = parse_json_response(mapping_response.output_text)
         
         # Convert mappings to CodeEvidence
         evidence = []
@@ -961,7 +958,7 @@ Only include mappings with confidence > 0.4. Output only the JSON array.""",
 
 ### Node 5: `verifier.py` — Produce Verdicts
 
-**Purpose:** For each claim, compare paper specification to code evidence and produce a final verdict. Uses sympy for formula claims, exact-value matching for hyperparameters, and Claude for algorithm claims.
+**Purpose:** For each claim, compare paper specification to code evidence and produce a final verdict. Uses sympy for formula claims, exact-value matching for hyperparameters, and OpenAI GPT for algorithm claims.
 
 ```python
 import sympy
@@ -974,14 +971,14 @@ def verify_formula(claim: MathClaim, evidence: CodeEvidence) -> Verdict:
     if claim.latex and evidence.code_snippet:
         try:
             paper_expr = parse_latex(claim.latex)
-            # Ask Claude to convert code to sympy expression
-            code_expr_response = client.messages.create(
-                model="claude-sonnet-4-6",
-                max_tokens=512,
-                system="Convert this Python math code to a sympy expression string. Output ONLY the sympy expression, nothing else.",
-                messages=[{"role": "user", "content": evidence.code_snippet}]
+            # Ask OpenAI GPT to convert code to sympy expression
+            code_expr_response = client.responses.create(
+                model=os.getenv("OPENAI_MODEL", "gpt-4.1"),
+                max_output_tokens=512,
+                instructions="Convert this Python math code to a sympy expression string. Output ONLY the sympy expression, nothing else.",
+                input=evidence.code_snippet,
             )
-            code_expr_str = code_expr_response.content[0].text.strip()
+            code_expr_str = code_expr_response.output_text.strip()
             code_expr = eval(f"sympy.{code_expr_str}", {"sympy": sympy})
             
             # Algebraic equivalence check
@@ -1000,10 +997,10 @@ def verify_formula(claim: MathClaim, evidence: CodeEvidence) -> Verdict:
             pass  # Fall through to LLM verification
     
     # LLM comparison fallback
-    verdict_response = client.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=1024,
-        system="""Compare a paper's mathematical claim to its code implementation.
+    verdict_response = client.responses.create(
+        model=os.getenv("OPENAI_MODEL", "gpt-4.1"),
+        max_output_tokens=1024,
+        instructions="""Compare a paper's mathematical claim to its code implementation.
 Output ONLY a JSON object:
 {"status": "pass|fail|partial|not_found", "confidence": 0.0-1.0, "reasoning": "...", "discrepancy": "... or null"}""",
         messages=[{"role": "user", "content": (
@@ -1011,7 +1008,7 @@ Output ONLY a JSON object:
             f"CODE IMPLEMENTATION:\n{evidence.code_snippet}"
         )}]
     )
-    raw = json.loads(verdict_response.content[0].text)
+    raw = json.loads(verdict_response.output_text)
     return Verdict(
         claim_id=claim.claim_id,
         status=raw["status"],
@@ -1370,7 +1367,7 @@ class VerdictRecord(Base):
 
 ```bash
 # Required
-ANTHROPIC_API_KEY=sk-ant-api03-...
+OPENAI_API_KEY=sk-...
 GITHUB_TOKEN=ghp_...              # Authenticated: 5,000 req/hr vs 60 unauthed
 
 # Optional — defaults shown
@@ -1386,7 +1383,7 @@ DEMO_MODE=false                   # If true, return cached results for demo arXi
 ## 13. `requirements.txt`
 
 ```
-anthropic>=0.25.0
+openai>=1.0.0
 langgraph>=0.1.0
 langchain-core>=0.2.0
 fastapi>=0.111.0
@@ -1489,7 +1486,7 @@ pip install -r requirements.txt
 
 # 2. Configure environment
 cp .env.example .env
-# Edit .env — add ANTHROPIC_API_KEY and GITHUB_TOKEN
+# Edit .env — add OPENAI_API_KEY and GITHUB_TOKEN
 
 # 3. Start backend
 uvicorn backend.main:app --reload --port 8000
@@ -1546,4 +1543,4 @@ Before submitting to FAR AWAY 2026:
 
 *PRD v2.0 — For FAR AWAY 2026, Track 3: Agentic & Autonomous Systems*  
 *Original prototype: Kaggle notebook (Gemini 2.5 Flash, hand-rolled sessions)*  
-*Production rebuild: Claude claude-sonnet-4-6, LangGraph StateGraph, AST-first forensics*
+*Production rebuild: OpenAI GPT, LangGraph StateGraph, AST-first forensics*
