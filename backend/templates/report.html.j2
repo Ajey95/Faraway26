@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Repro-Agent Audit</title><style>body{font-family:system-ui;margin:2rem;color:#172033}.badge{padding:.2rem .5rem;border-radius:.5rem;background:#eef}pre{background:#f6f8fa;padding:1rem;overflow:auto}</style></head>
+<body>
+<h1>Repro-Agent Audit</h1>
+<p><strong>Paper:</strong> {{ state.paper_metadata.title }}</p>
+<p><strong>Repository:</strong> {{ state.repo_url }}</p>
+<p><strong>Score:</strong> {{ "%.0f"|format(state.reproducibility_score * 100) }}%</p>
+<h2>Claims</h2>
+{% for claim in state.claims %}<section><h3>{{ claim.description }} <span class="badge">{{ claim.claim_type }}</span></h3><p>{{ claim.raw_text }}</p>{% if claim.latex %}<pre>{{ claim.latex }}</pre>{% endif %}</section>{% endfor %}
+<h2>Verdicts</h2>
+{% for verdict in state.verdicts %}<section><h3>{{ verdict.claim_id }} — {{ verdict.status }}</h3><p>{{ verdict.reasoning }}</p></section>{% endfor %}
+{% if state.errors %}<h2>Warnings</h2><ul>{% for error in state.errors %}<li>{{ error }}</li>{% endfor %}</ul>{% endif %}
+</body></html>
